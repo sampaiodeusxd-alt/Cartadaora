@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carta Interativa</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: #ffe4e1;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      transition: background-color 0.5s ease;
+    }
+
+    /* TELA FINAL ESCURA */
+    body.dark-mode {
+      background-color: #000;
+    }
+
+    .container {
+      position: relative;
+      width: 320px;
+      height: 220px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ENVELOPE */
+    .envelope {
+      position: absolute;
+      width: 300px;
+      height: 200px;
+      background-color: #f3d19e;
+      border-radius: 8px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      z-index: 2;
+    }
+
+    .envelope-pocket {
+      position: absolute;
+      bottom: 0;
+      width: 0;
+      height: 0;
+      border-left: 150px solid #e1b878;
+      border-right: 150px solid #e1b878;
+      border-bottom: 110px solid #d4a762;
+      border-top: 90px solid transparent;
+      border-radius: 0 0 8px 8px;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /* ABA DO ENVELOPE */
+    .envelope-flap {
+      position: absolute;
+      top: 0;
+      width: 0;
+      height: 0;
+      border-left: 150px solid transparent;
+      border-right: 150px solid transparent;
+      border-top: 110px solid #d4a762;
+      transform-origin: top;
+      transition: transform 0.6s ease, z-index 0.6s step-end;
+      z-index: 5;
+      cursor: pointer;
+    }
+
+    .envelope.open .envelope-flap {
+      transform: rotateX(180deg);
+      z-index: 1;
+    }
+
+    /* LACRE DE CERA */
+    .wax-seal {
+      position: absolute;
+      top: 80px;
+      width: 45px;
+      height: 45px;
+      background: radial-gradient(circle, #a81c1c 40%, #7a1212 90%);
+      border-radius: 50%;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #ffd700;
+      font-weight: bold;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 6;
+      transition: transform 0.2s, opacity 0.3s ease;
+    }
+
+    .wax-seal:hover {
+      transform: scale(1.08);
+    }
+
+    .wax-seal.broken {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.3) rotate(15deg);
+    }
+
+    /* PAPEL PAUTADO */
+    .letter {
+      position: absolute;
+      top: 10px;
+      width: 260px;
+      height: 380px;
+      background: #fff8f0;
+      /* Linhas pautadas suaves */
+      background-image: repeating-linear-gradient(#fff8f0, #fff8f0 24px, #a8c8e8 25px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      border-radius: 4px;
+      padding: 30px 20px 20px 20px;
+      z-index: 2;
+      cursor: grab;
+      transform: translateY(0);
+      transition: transform 0.1s linear, box-shadow 0.3s;
+    }
+
+    .letter:active {
+      cursor: grabbing;
+    }
+
+    .letter-text {
+      font-size: 14px;
+      line-height: 25px;
+      color: #333;
+      pointer-events: none;
+    }
+
+    /* ESTADO DESDOBRADO DA CARTA */
+    .letter.unfolded {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) !important;
+      z-index: 10;
+      cursor: default;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.25);
+      animation: unfoldAnim 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.27) forwards;
+    }
+
+    @keyframes unfoldAnim {
+      0% { transform: translate(-50%, 0) scale(0.8); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* ISQUEIRO */
+    .lighter {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      width: 30px;
+      height: 50px;
+      background: linear-gradient(135deg, #333, #111);
+      border-radius: 4px;
+      cursor: pointer;
+      display: none;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .lighter::before {
+      content: '';
+      position: absolute;
+      top: -12px;
+      left: 5px;
+      width: 20px;
+      height: 12px;
+      background: #aaa;
+      border-radius: 3px 3px 0 0;
+    }
+
+    .lighter::after {
+      content: '🔥';
+      position: absolute;
+      top: -24px;
+      left: 4px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .lighter:hover::after {
+      opacity: 1;
+    }
+
+    .letter.unfolded .lighter {
+      display: block;
+    }
+
+    /* EFEITO DE FOGO */
+    .fire-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle, #ff4500, #ff8c00, #000);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 99;
+      transition: opacity 0.3s ease;
+    }
+
+    .fire-active {
+      animation: burnEffect 1s forwards;
+    }
+
+    @keyframes burnEffect {
+      0% { opacity: 0; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* CARINHA TRISTE FINAL */
+    .sad-face {
+      display: none;
+      color: #fff;
+      font-size: 80px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container" id="mainContainer">
+    <div class="envelope" id="envelope">
+      <div class="envelope-flap" id="flap"></div>
+      <div class="envelope-pocket"></div>
+    </div>
+
+    <div class="wax-seal" id="seal">★</div>
+
+    <div class="letter" id="letter">
+      <div class="letter-text">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+        <br><br>
+        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+      </div>
+      <div class="lighter" id="lighter" title="Clique para acender"></div>
+    </div>
+  </div>
+
+  <div class="fire-overlay" id="fireOverlay"></div>
+
+  <div class="sad-face" id="sadFace">:(</div>
+
+  <script>
+    const seal = document.getElementById('seal');
+    const envelope = document.getElementById('envelope');
+    const flap = document.getElementById('flap');
+    const letter = document.getElementById('letter');
+    const lighter = document.getElementById('lighter');
+    const fireOverlay = document.getElementById('fireOverlay');
+    const sadFace = document.getElementById('sadFace');
+    const mainContainer = document.getElementById('mainContainer');
+
+    let sealBroken = false;
+    let envelopeOpened = false;
+    let isDragging = false;
+    let startY = 0;
+    let currentY = 0;
+
+    // 1. QUEBRAR O LACRE
+    seal.addEventListener('click', () => {
+      seal.classList.add('broken');
+      sealBroken = true;
+    });
+
+    // 2. ABRIR A ABA DO ENVELOPE
+    flap.addEventListener('click', () => {
+      if (sealBroken && !envelopeOpened) {
+        envelope.classList.add('open');
+        envelopeOpened = true;
+      }
+    });
+
+    // 3. PUXAR O PAPEL (FÍSICA DE ARRASTAR)
+    const startDrag = (e) => {
+      if (!envelopeOpened || letter.classList.contains('unfolded')) return;
+      isDragging = true;
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+    };
+
+    const onDrag = (e) => {
+      if (!isDragging) return;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = clientY - startY;
+
+      // Só permite puxar para cima (valores negativos)
+      if (deltaY < 0) {
+        currentY = deltaY;
+        letter.style.transform = `translateY(${currentY}px)`;
+      }
+
+      // Limite para acionar o desdobramento (arrastou 120px para cima)
+      if (deltaY < -120) {
+        isDragging = false;
+        letter.style.transform = '';
+        letter.classList.add('unfolded');
+      }
+    };
+
+    const endDrag = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      // Se não puxou o suficiente, volta para o lugar
+      if (!letter.classList.contains('unfolded')) {
+        letter.style.transform = 'translateY(0)';
+      }
+    };
+
+    // Eventos de Mouse e Touch
+    letter.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', onDrag);
+    window.addEventListener('mouseup', endDrag);
+
+    letter.addEventListener('touchstart', startDrag);
+    window.addEventListener('touchmove', onDrag);
+    window.addEventListener('touchend', endDrag);
+
+    // 4. O ISQUEIRO E O FOGO
+    lighter.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      // Dispara animação do fogo
+      fireOverlay.classList.add('fire-active');
+
+      // Após 1 segundo (duração da animação do fogo)
+      setTimeout(() => {
+        mainContainer.style.display = 'none';
+        document.body.classList.add('dark-mode');
+        fireOverlay.style.display = 'none';
+        sadFace.style.display = 'block';
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
+
